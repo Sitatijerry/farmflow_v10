@@ -6,12 +6,13 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_KEY: str
     SUPABASE_ANON_KEY: str
+    SUPABASE_SERVICE_ROLE_KEY: str
     SECRET_KEY: str
     
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     
-    # OpenMeteo (this was missing)
+    # OpenMeteo 
     OPENMETEO_API_URL: str = "https://api.open-meteo.com/v1"
     
     # CORS

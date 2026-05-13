@@ -1,8 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from services.supabase_client import get_supabase
-from config.settings import settings
-from supabase import create_client
-import uuid
+from services.supabase_client import get_supabase, get_supabase_admin
 
 router = APIRouter()
 
@@ -10,8 +7,8 @@ router = APIRouter()
 @router.post("/workers")
 async def create_worker(body: dict):
     try:
-        # Admin client needed to create auth users
-        admin_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+        admin_client = get_supabase_admin()  # ← clean, uses shared client
+        supabase = get_supabase()
 
         email = body.get("contact")
         password = body.get("password")
@@ -22,7 +19,6 @@ async def create_worker(body: dict):
         if not email or not password or not name:
             raise HTTPException(status_code=400, detail="name, contact (email), and password are required")
 
-        # Create Supabase Auth user
         auth_response = admin_client.auth.admin.create_user({
             "email": email,
             "password": password,
@@ -35,8 +31,6 @@ async def create_worker(body: dict):
 
         auth_id = str(auth_user.id)
 
-        # Insert into users table
-        supabase = get_supabase()
         user_result = supabase.table("users").insert({
             "auth_id": auth_id,
             "email": email,
