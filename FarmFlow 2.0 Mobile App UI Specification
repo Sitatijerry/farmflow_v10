@@ -1,0 +1,154 @@
+# FarmFlow 2.0 Mobile App UI Specification
+
+## 1. Introduction
+
+This document provides a comprehensive UI specification for the FarmFlow 2.0 mobile application, based on the provided Figma design. The goal is to detail key design elements such as colors, typography, spacing, component states, mobile responsiveness, and interactions across various screens. This specification aims to serve as a reference for development and future design iterations.
+
+## 2. Overall Design Principles
+
+The FarmFlow 2.0 mobile app exhibits a clean, modern, and user-friendly design, optimized for agricultural workers. Key principles include:
+
+*   **Clarity and Simplicity**: Information is presented clearly with minimal clutter, focusing on essential tasks and data.
+*   **Functionality-First**: The UI prioritizes ease of use and efficient task completion for field operations.
+*   **Brand Consistency**: A consistent visual language, including a distinctive green color palette, reinforces the FarmFlow brand.
+*   **Mobile Optimization**: Large touch targets, clear typography, and vertical layouts ensure usability on mobile devices.
+*   **Action-Oriented**: Prominent call-to-action buttons guide users through workflows.
+
+## 3. Color Palette
+
+The application utilizes a focused color palette, primarily featuring shades of green, complemented by neutral grays and specific accent colors for status indicators.
+
+| Category        | Color Name      | Hex Code (Approximate) | Usage                                      |
+| :-------------- | :-------------- | :--------------------- | :----------------------------------------- |
+| **Primary**     | FarmFlow Green  | #4CAF50                | Primary buttons, active states, branding   |
+|                 | Dark Green      | #388E3C                | Hover/pressed states, darker accents       |
+| **Secondary**   | Light Green     | #8BC34A                | Secondary buttons, subtle highlights       |
+| **Neutral**     | White           | #FFFFFF                | Backgrounds, text on dark elements         |
+|                 | Light Gray      | #F5F5F5                | Card backgrounds, subtle separators        |
+|                 | Medium Gray     | #BDBDBD                | Borders, inactive elements, placeholder text |
+|                 | Dark Gray       | #424242                | Body text, icons                           |
+| **Accent/Status** | Red (Urgent)    | #F44336                | Urgent alerts, error states                |
+|                 | Yellow (Warning)| #FFEB3B                | Warning messages, pending status           |
+|                 | Blue (Info)     | #2196F3                | Informational messages, active links       |
+
+## 4. Typography
+
+The typography is clear and legible, using a sans-serif font family that is common in mobile interfaces, likely Roboto or a similar system font. A hierarchical structure is maintained through varying font sizes and weights.
+
+| Element         | Font Family     | Weight     | Size (Approx.) | Line Height (Approx.) | Color (Approx.) | Usage                                      |
+| :-------------- | :-------------- | :--------- | :------------- | :-------------------- | :-------------- | :----------------------------------------- |
+| **Headings (H1)** | Sans-serif      | Bold       | 24px           | 32px                  | #424242         | Screen titles, prominent information       |
+| **Headings (H2)** | Sans-serif      | Semibold   | 18px           | 24px                  | #424242         | Section titles, card headers               |
+| **Body Text**   | Sans-serif      | Regular    | 14px           | 20px                  | #424242         | General content, descriptions              |
+| **Labels/Small**| Sans-serif      | Medium     | 12px           | 16px                  | #BDBDBD         | Input labels, captions, metadata           |
+| **Buttons**     | Sans-serif      | Semibold   | 16px           | 24px                  | #FFFFFF         | Call-to-action buttons                     |
+
+## 5. Spacing and Layout
+
+The design employs a consistent spacing system, likely based on an 8pt or 4pt grid, ensuring visual harmony and readability. Common spacing values are observed for:
+
+*   **Padding**: Internal spacing within components and containers.
+*   **Margins**: External spacing between distinct UI elements.
+*   **Component Separation**: Consistent gaps between cards, list items, and form fields.
+
+Overall, the layout is vertically oriented, typical for mobile applications, with content organized into distinct cards or sections.
+
+## 6. Component States
+
+Interactive components are designed with clear visual feedback for different states:
+
+*   **Buttons**: 
+    *   **Default**: FarmFlow Green (#4CAF50) background with white text.
+    *   **Pressed/Active**: Darker green (#388E3C) background.
+    *   **Disabled**: Lighter gray background (#E0E0E0) with medium gray text (#BDBDBD).
+*   **Input Fields**: 
+    *   **Default**: Light gray background (#F5F5F5) with medium gray border and placeholder text.
+    *   **Focused**: Green border (e.g., #4CAF50) to indicate active input.
+    *   **Error**: Red border (#F44336) with corresponding error message.
+*   **Checkboxes/Toggles**: 
+    *   **Unselected**: Gray outline.
+    *   **Selected**: FarmFlow Green fill.
+
+## 7. Mobile Responsiveness
+
+As a mobile-first design, the layouts are inherently responsive to typical smartphone screen dimensions. Elements are stacked vertically, and content scales appropriately. The use of cards and clear separation between sections ensures readability and usability across various mobile screen sizes. There are no explicit indications of tablet or desktop layouts in the provided Figma.
+
+## 8. Interactions
+
+Key interactions are intuitive and follow standard mobile patterns:
+
+*   **Navigation**: Bottom navigation bar for primary sections (Tasks, Capture, Tips). Tapping an icon highlights the active section.
+*   **Task Management**: 
+Tapping a task card opens the detailed task view. "Start Task" and "Complete" buttons trigger state changes and potentially open confirmation dialogs or subsequent workflows.
+*   **Image Capture**: Tapping "Capture" or "Upload" opens the device camera or photo gallery, respectively.
+*   **Form Input**: Tapping input fields brings up the device keyboard.
+*   **Scrolling**: Vertical scrolling is used extensively for lists (e.g., Daily Tasks, Recommendations) and long content areas.
+
+## 9. Screen-by-Screen Analysis
+
+### 9.1. Daily Tasks
+
+*   **Purpose**: Displays a list of tasks assigned to the worker for the day.(by the farm manager from frontend-manager)
+*   **Key Elements**:
+    *   Header with farm name and date.
+    *   List of task cards, each containing:
+        *   Priority indicator (e.g., High, Medium, Low) with corresponding color coding (Red, Yellow, Green).
+        *   Task title and description.
+        *   Time and location details.
+        *   "Start Task" and "Complete" action buttons.
+    *   Bottom navigation bar.
+*   **Interactions**: Tapping a task card navigates to the Task Details screen. Tapping action buttons updates task status.
+
+### 9.2. Worker Login
+
+*   **Purpose**: Authentication screen for workers to access the app.
+*   **Key Elements**:
+    *   App logo and welcome message.
+    *   Input fields for Worker ID/Email and Password.
+    *   "Log In" button.
+    *   "Forgot ID?" link.
+    *   Language switch option.
+*   **Interactions**: Inputting credentials and tapping "Log In" authenticates the user.
+
+### 9.3. Task Details
+
+*   **Purpose**: Provides comprehensive information and instructions for a specific task.
+*   **Key Elements**:
+    *   Back button to return to the Daily Tasks list.
+    *   Task title, priority, and date.
+    *   Detailed step-by-step instructions.
+    *   Map view showing the task location with a "Navigate" button.
+    *   "Worker Notes" input area.
+    *   "Visual Proof" section for uploading images.
+    *   "Complete Task" button.
+*   **Interactions**: Tapping "Navigate" likely opens a map application. Tapping "Upload Image Proof" opens the image capture workflow.
+
+### 9.4. Image Capture
+
+*   **Purpose**: Allows workers to document field conditions by capturing or uploading photos.
+*   **Key Elements**:
+    *   Header with farm name.
+    *   GPS status indicator.
+    *   Camera viewfinder area with a "Preview" overlay.
+    *   "Capture" and "Upload" buttons.
+    *   "Image Type" selection (e.g., Crop, Soil, Pest, Irrigation, Disease).
+    *   "Observation Notes" input area.
+    *   "Submit Field Data" button.
+*   **Interactions**: Selecting an image type categorizes the photo. Submitting the data saves the record.
+
+### 9.5. Recommendations (Farm Tips)
+
+*   **Purpose**: Displays personalized daily recommendations and alerts for the farm.
+*   **Key Elements**:
+    *   Header with farm name.
+    *   List of recommendation cards, categorized by type (e.g., Urgent, Crop Status, Action Required, Insight, Daily Tip).
+    *   Each card includes an icon, title, description, and timestamp.
+    *   "View Past Recommendations" button.
+*   **Interactions**: Scrolling through the list to view tips. Tapping a card might provide more details or related actions.
+
+## 10. Conclusion
+
+This UI specification outlines the core design elements and interactions of the FarmFlow 2.0 mobile application. Adhering to these guidelines will ensure a consistent, user-friendly, and effective experience for agricultural workers using the app.
+
+---
+*Document generated by Manus AI based on the provided Figma design.*

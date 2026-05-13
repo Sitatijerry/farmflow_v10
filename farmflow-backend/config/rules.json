@@ -1,0 +1,39 @@
+{
+  "rules": [
+    {
+      "id": "R-01",
+      "name": "Water Stress Management",
+      "urgency": "HIGH",
+      "action": "Suppress irrigation, switch to micro-drip",
+      "rationale": "High water stress with groundwater dependency requires immediate intervention"
+    },
+    {
+      "id": "R-02",
+      "name": "Fertilization Timing",
+      "urgency": "HIGH",
+      "action": "Delay fertilisation 3-5 days",
+      "rationale": "Upcoming rain will leach nutrients; wait for better absorption"
+    },
+    {
+      "id": "R-03",
+      "name": "Integrated Pest Management",
+      "urgency": "CRITICAL",
+      "action": "IPM intervention required",
+      "rationale": "Temperature spike indicates imminent infestation risk"
+    },
+    {
+      "id": "R-04",
+      "name": "Harvest Timing",
+      "urgency": "HIGH",
+      "action": "Advance harvest 3-5 days",
+      "rationale": "Heat stress near maturity reduces yield; early harvest preserves quality"
+    },
+    {
+      "id": "R-05",
+      "name": "Soil Moisture Optimization",
+      "urgency": "MEDIUM",
+      "action": "Increase irrigation frequency",
+      "rationale": "Low rainfall and soil moisture; supplement with controlled irrigation"
+    }
+  ]
+}
