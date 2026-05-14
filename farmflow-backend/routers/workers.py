@@ -87,43 +87,23 @@ async def create_worker(body: dict):
 # GET /api/workers?farm_id=1   (list workers)
 # ──────────────────────────────────────────
 @router.get("/workers")
-async def list_workers(farm_id: Optional[str] = None):
+async def list_workers(farm_id: str = None):
     try:
         supabase = get_supabase()
-
-        # Query through farm_workers so we get the numeric user.id needed for task assignment
-        query = supabase.table("farm_workers").select("""
-            id,
-            farm_id,
-            assigned_at,
-            users (id, name, email, auth_id)
-        """)
-
-        if farm_id:
-            try:
-                query = query.eq("farm_id", int(farm_id))
-            except (ValueError, TypeError):
-                raise HTTPException(status_code=400, detail="farm_id must be an integer")
-
-        result = query.execute()
-        result_data = getattr(result, "data", None) or (result.get("data") if isinstance(result, dict) else None)
-
-        workers = []
-        for row in result_data or []:
-            user = row.get("users", {})
-            workers.append({
-                "id": str(user.get("id", "")),          # numeric id for task assignment
-                "name": user.get("name", "Unknown"),
-                "email": user.get("email", ""),
-                "role": "Field Worker",
-                "assigned_sector": "Block A",
-                "login_id": user.get("auth_id", ""),     # UUID for auth login
-                "assigned_at": row.get("assigned_at")
-            })
-
-        return {"workers": workers}
-
-    except HTTPException:
-        raise
+        result = supabase.table("users").select("id, name, role, email").execute()
+        workers = result.data or []
+        # Map to expected frontend shape
+        mapped = [
+            {
+                "id": str(w["id"]),
+                "name": w.get("name") or w.get("email", "Worker"),
+                "role": w.get("role", "worker"),
+                "contact": w.get("email", ""),
+                "assigned_sector": "",
+                "login_id": str(w["id"]),
+            }
+            for w in workers
+        ]
+        return {"workers": mapped}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

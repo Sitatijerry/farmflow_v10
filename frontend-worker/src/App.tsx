@@ -729,7 +729,7 @@ function ImageCapturePage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        field_id: TEST_FIELD_ID,
+        field_id: FIELD_ID,
         activity_type: `image-${imageType}`,
         hours_logged: 0,
         notes: notes || `Submitted ${imageType} field image${imageName ? `: ${imageName}` : ''}`,
@@ -915,9 +915,11 @@ function SchedulePage() {
 interface Notification {
   id: string
   title: string
-  content: string
+  content?: string
+  message?: string
   created_at: string
   read?: boolean
+  is_read?: boolean
   notification_type?: string
 }
 
@@ -951,7 +953,7 @@ function AlertsPage() {
             <p className="text-sm font-semibold text-gray-800">{notification.title}</p>
             {!notification.read && <span className="mt-1 h-2 w-2 rounded-full bg-red-500" />}
           </div>
-          <p className="mt-1 text-sm text-gray-600">{notification.content}</p>
+          <p className="mt-1 text-sm text-gray-600">{notification.content || notification.message}</p>
           <p className="mt-2 text-xs text-gray-400">{new Date(notification.created_at).toLocaleString()}</p>
         </div>
       ))}
