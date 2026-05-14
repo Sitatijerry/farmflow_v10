@@ -25,35 +25,73 @@ export interface FarmTask {
   fields?: TaskField | null
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 
-async function request<T>(path: string, accessToken?: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...init?.headers,
-    },
-    ...init,
-  })
+// API Configuration - Avoid double /api issue
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-  if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}`)
+const API_BASE_URL = BASE_URL.endsWith('/api') 
+  ? BASE_URL 
+  : `${BASE_URL}/api`
+
+async function request<T>(
+  path: string, 
+  accessToken?: string, 
+  init?: RequestInit
+): Promise<T> {
+  // Ensure path starts with /
+  const cleanPath = path.startsWith('/') ? path : `/${path}`
+  const url = `${API_BASE_URL}${cleanPath}`
+
+  console.log(`🌐 API Request: ${init?.method || 'GET'} ${url}`)
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...init?.headers,
+      },
+      ...init,
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '')
+      console.error(`❌ API Error ${response.status}:`, errorText)
+      throw new Error(`API Error ${response.status}: ${errorText || response.statusText}`)
+    }
+
+    return await response.json() as T
+
+  } catch (error) {
+    console.error(`🚨 Network Error calling ${url}:`, error)
+    throw error
   }
-
-  return response.json() as Promise<T>
 }
 
 export async function fetchTasks(accessToken?: string): Promise<FarmTask[]> {
-  const data = await request<{ tasks?: FarmTask[] }>('/tasks', accessToken)
-  return data.tasks ?? []
+  try {
+    const data = await request<{ tasks?: FarmTask[] }>('/tasks', accessToken)
+    return data.tasks ?? []
+  } catch (error) {
+    console.error('Failed to fetch tasks:', error)
+    throw error
+  }
 }
 
-export async function updateTaskStatus(taskId: string, status: TaskStatus, accessToken?: string): Promise<FarmTask[]> {
-  const data = await request<{ task?: FarmTask[] }>(`/tasks/${taskId}`, accessToken, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
-  })
+export async function updateTaskStatus(
+  taskId: string, 
+  status: TaskStatus, 
+  accessToken?: string
+): Promise<FarmTask> {
+  try {
+    const data = await request<{ task?: FarmTask }>(`/tasks/${taskId}`, accessToken, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    })
 
-  return data.task ?? []
+    return data.task ?? { id: taskId, title: '', status } as FarmTask
+  } catch (error) {
+    console.error(`Failed to update task ${taskId}:`, error)
+    throw error
+  }
 }

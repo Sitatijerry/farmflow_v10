@@ -1,13 +1,16 @@
+from typing import Optional
 from fastapi import APIRouter, HTTPException
 from services.supabase_client import get_supabase, get_supabase_admin
 
 router = APIRouter()
 
-
+# ──────────────────────────────────────────
+# POST /api/workers   (create worker)
+# ──────────────────────────────────────────
 @router.post("/workers")
 async def create_worker(body: dict):
     try:
-        admin_client = get_supabase_admin()  # ← clean, uses shared client
+        admin_client = get_supabase_admin()
         supabase = get_supabase()
 
         email = body.get("contact")
@@ -19,6 +22,7 @@ async def create_worker(body: dict):
         if not email or not password or not name:
             raise HTTPException(status_code=400, detail="name, contact (email), and password are required")
 
+        # 1) Create Supabase Auth user (UUID)
         auth_response = admin_client.auth.admin.create_user({
             "email": email,
             "password": password,
@@ -31,20 +35,32 @@ async def create_worker(body: dict):
 
         auth_id = str(auth_user.id)
 
-        user_result = supabase.table("users").insert({
-            "auth_id": auth_id,
-            "email": email,
-            "name": name,
-            "role": role,
-        }).execute()
+        # 2) Ensure public.users row exists (numeric id needed for FKs)
+        #    If your DB sequence is stuck, this will fail with:
+        #    "Key (id)=(1) already exists"
+        #    Fix: run the SQL at the bottom of this file in Supabase SQL Editor.
+        existing = supabase.table("users").select("id,auth_id").eq("auth_id", auth_id).limit(1).execute()
+        existing_data = getattr(existing, "data", None) or (existing.get("data") if isinstance(existing, dict) else None)
 
-        user_row = user_result.data[0] if user_result.data else {}
+        if existing_data and len(existing_data) > 0:
+            user_row = existing_data[0]
+        else:
+            insert = supabase.table("users").insert({
+                "auth_id": auth_id,
+                "email": email,
+                "name": name,
+                "role": role,
+            }).execute()
+            insert_data = getattr(insert, "data", None) or (insert.get("data") if isinstance(insert, dict) else None)
+            if not insert_data:
+                raise HTTPException(status_code=500, detail="Failed to insert into public.users")
+            user_row = insert_data[0]
 
-        print(f"✅ Worker created: {email} auth_id={auth_id}")
+        print(f"✅ Worker created: {email} auth_id={auth_id} numeric_id={user_row.get('id')}")
 
         return {
             "worker": {
-                "id": user_row.get("id"),
+                "id": str(user_row.get("id", "")),
                 "name": name,
                 "role": role,
                 "contact": email,
@@ -56,15 +72,58 @@ async def create_worker(body: dict):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ ERROR creating worker: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        err_msg = str(e)
+        print(f"❌ ERROR creating worker: {err_msg}")
+        # Surface the sequence-conflict hint if we detect it
+        if "already exists" in err_msg and "Key (id)" in err_msg:
+            raise HTTPException(
+                status_code=500,
+                detail="DB sequence conflict on users.id. Run: SELECT setval('users_id_seq', (SELECT MAX(id) FROM users)); in Supabase SQL Editor, then retry."
+            )
+        raise HTTPException(status_code=500, detail=err_msg)
 
 
+# ──────────────────────────────────────────
+# GET /api/workers?farm_id=1   (list workers)
+# ──────────────────────────────────────────
 @router.get("/workers")
-async def list_workers():
+async def list_workers(farm_id: Optional[str] = None):
     try:
         supabase = get_supabase()
-        result = supabase.table("users").select("*").eq("role", "worker").execute()
-        return {"workers": result.data or []}
+
+        # Query through farm_workers so we get the numeric user.id needed for task assignment
+        query = supabase.table("farm_workers").select("""
+            id,
+            farm_id,
+            assigned_at,
+            users (id, name, email, auth_id)
+        """)
+
+        if farm_id:
+            try:
+                query = query.eq("farm_id", int(farm_id))
+            except (ValueError, TypeError):
+                raise HTTPException(status_code=400, detail="farm_id must be an integer")
+
+        result = query.execute()
+        result_data = getattr(result, "data", None) or (result.get("data") if isinstance(result, dict) else None)
+
+        workers = []
+        for row in result_data or []:
+            user = row.get("users", {})
+            workers.append({
+                "id": str(user.get("id", "")),          # numeric id for task assignment
+                "name": user.get("name", "Unknown"),
+                "email": user.get("email", ""),
+                "role": "Field Worker",
+                "assigned_sector": "Block A",
+                "login_id": user.get("auth_id", ""),     # UUID for auth login
+                "assigned_at": row.get("assigned_at")
+            })
+
+        return {"workers": workers}
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

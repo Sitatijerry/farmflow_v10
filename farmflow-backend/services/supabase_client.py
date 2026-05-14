@@ -1,6 +1,5 @@
 from supabase import create_client, Client
 from config.settings import settings
-from supabase.lib.client_options import ClientOptions
 
 # Cache the clients
 _supabase_client: Client | None = None
@@ -21,7 +20,7 @@ def get_supabase() -> Client:
             raise ValueError("SUPABASE_URL or SUPABASE_KEY is missing in .env")
 
         _supabase_client = create_client(url, key)
-        print("✅ Supabase client initialized successfully (using service role key)")
+        print("✅ Supabase client initialized successfully")
         return _supabase_client
 
     except Exception as e:
@@ -38,16 +37,14 @@ def get_supabase_admin() -> Client:
 
     try:
         url = settings.SUPABASE_URL
-        service_key = settings.SUPABASE_SERVICE_ROLE_KEY   # Important: different from normal key
+        service_key = settings.SUPABASE_SERVICE_ROLE_KEY
 
         if not url or not service_key:
             raise ValueError("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing in .env")
 
-        _supabase_admin = create_client(
-            url, 
-            service_key,
-            options=ClientOptions(auto_refresh_token=False, persist_session=False)
-        )
+        # For supabase 2.6.0, pass options as a dict or use no options
+        # The auto_refresh_token and persist_session flags are not valid in this version's ClientOptions
+        _supabase_admin = create_client(url, service_key)
         print("✅ Supabase Admin client initialized successfully")
         return _supabase_admin
 

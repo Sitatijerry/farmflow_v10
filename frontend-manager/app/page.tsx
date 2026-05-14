@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+import { useEffect, useMemo, useState, FormEvent } from 'react'
+import type { ReactNode } from 'react'
 import {
   Bar,
   BarChart,
@@ -31,6 +31,7 @@ interface Task {
   description?: string
   status: TaskStatus
   assigned_to?: string
+  worker_name?: string
   due_date?: string
   field_name?: string
   crop_type?: string
@@ -64,6 +65,7 @@ interface Activity {
 interface Field {
   id: string
   name: string
+  farm_id?: string
   field_id?: string
   field_name?: string
   crop_type?: string
@@ -145,7 +147,6 @@ function activityText(activity: Activity) {
 
 function formatActivityTime(value?: string) {
   if (!value) return 'Recently'
-
   return new Intl.DateTimeFormat('en-KE', {
     day: 'numeric',
     month: 'short',
@@ -296,13 +297,101 @@ function DashboardView({
   )
 }
 
-function OperationsView({ tasks, activities }: { tasks: Task[]; activities: Activity[] }) {
+function OperationsView({
+  tasks,
+  activities,
+  fields,
+  workers,
+  selectedFarmId,
+  onTaskCreated,
+}: {
+  tasks: Task[]
+  activities: Activity[]
+  fields: Field[]
+  workers: Worker[]
+  selectedFarmId: string
+  onTaskCreated: () => void
+}) {
   const [statusFilter, setStatusFilter] = useState<'all' | TaskStatus>('all')
   const [selectedPlot, setSelectedPlot] = useState(plots[0])
   const visibleTasks = statusFilter === 'all' ? tasks : tasks.filter(task => task.status === statusFilter)
   const activeTasks = tasks.filter(task => task.status !== 'done').length
   const inProgress = tasks.filter(task => task.status === 'in-progress').length
   const completed = tasks.filter(task => task.status === 'done').length
+
+  // Task creation form state
+  const [taskForm, setTaskForm] = useState({
+    taskType: 'Irrigation check',
+    fieldId: fields[0]?.id || '',
+    assignedTo: workers[0]?.id || '',
+    priority: 'Medium',
+    dueDate: '',
+    description: ''
+  })
+  const [creating, setCreating] = useState(false)
+  const [createStatus, setCreateStatus] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (fields.length > 0 && !taskForm.fieldId) {
+      setTaskForm(prev => ({ ...prev, fieldId: fields[0].id }))
+    }
+  }, [fields])
+
+  useEffect(() => {
+    if (workers.length > 0 && !taskForm.assignedTo) {
+      setTaskForm(prev => ({ ...prev, assignedTo: workers[0].id }))
+    }
+  }, [workers])
+
+  const handleCreateTask = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setCreating(true)
+    setCreateStatus(null)
+
+    try {
+      const field = fields.find(f => f.id === taskForm.fieldId)
+      if (!field) throw new Error('Please select a field')
+      if (!field.farm_id) throw new Error('Field has no farm assigned')
+
+      const priorityMap: Record<string, string> = {
+        'High': 'high',
+        'Medium': 'medium',
+        'Low': 'low'
+      }
+
+      const response = await fetch(`${API}/api/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          farm_id: parseInt(field.farm_id),
+          field_id: parseInt(taskForm.fieldId),
+          assigned_to: parseInt(taskForm.assignedTo),
+          title: taskForm.taskType,
+          description: taskForm.description || `${taskForm.taskType} for ${field.name}`,
+          priority: priorityMap[taskForm.priority] || 'medium',
+          due_date: taskForm.dueDate || null
+        })
+      })
+
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.detail || 'Failed to create task')
+
+      setCreateStatus('Task created successfully!')
+      setTaskForm({
+        taskType: 'Irrigation check',
+        fieldId: fields[0]?.id || '',
+        assignedTo: workers[0]?.id || '',
+        priority: 'Medium',
+        dueDate: '',
+        description: ''
+      })
+      onTaskCreated()
+    } catch (err) {
+      setCreateStatus(err instanceof Error ? err.message : 'Failed to create task')
+    } finally {
+      setCreating(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -355,7 +444,7 @@ function OperationsView({ tasks, activities }: { tasks: Task[]; activities: Acti
                         <p className="text-xs text-gray-500">{task.description || 'No task notes'}</p>
                       </td>
                       <td className="text-gray-600">{task.field_name || 'Unassigned'}</td>
-                      <td className="text-gray-600">{task.assigned_to || 'Worker pending'}</td>
+                      <td className="text-gray-600">{task.worker_name || task.assigned_to || 'Worker pending'}</td>
                       <td><span className={`rounded-full px-2 py-1 text-xs font-semibold ${statusClasses(task.status)}`}>{task.status}</span></td>
                       <td>
                         <div className="flex items-center gap-2">
@@ -377,35 +466,99 @@ function OperationsView({ tasks, activities }: { tasks: Task[]; activities: Acti
 
         <Card className="p-5">
           <h2 className="text-xl font-semibold text-gray-900">Schedule Next Task</h2>
-          <p className="mt-1 text-sm text-gray-500">Planning panel only; task creation endpoint is not available yet.</p>
-          <div className="mt-4 space-y-3">
+          <p className="mt-1 text-sm text-gray-500">Create a task and assign it to a worker.</p>
+          <form onSubmit={handleCreateTask} className="mt-4 space-y-3">
             <label className="block text-sm font-medium text-gray-700">
               Task Type
-              <select className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 outline-none focus:border-green-700">
+              <select
+                value={taskForm.taskType}
+                onChange={e => setTaskForm({ ...taskForm, taskType: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 outline-none focus:border-green-700"
+              >
                 <option>Irrigation check</option>
                 <option>Pest inspection</option>
                 <option>Fertilizer application</option>
                 <option>Harvest assessment</option>
               </select>
             </label>
+
             <label className="block text-sm font-medium text-gray-700">
               Field
-              <select className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 outline-none focus:border-green-700">
-                {plots.map(plot => <option key={plot.name}>{plot.name}</option>)}
+              <select
+                value={taskForm.fieldId}
+                onChange={e => setTaskForm({ ...taskForm, fieldId: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 outline-none focus:border-green-700"
+              >
+                {fields.map(field => (
+                  <option key={field.id} value={field.id}>{field.name}</option>
+                ))}
+                {fields.length === 0 && <option value="">No fields available</option>}
               </select>
             </label>
+
+            <label className="block text-sm font-medium text-gray-700">
+              Assign To
+              <select
+                value={taskForm.assignedTo}
+                onChange={e => setTaskForm({ ...taskForm, assignedTo: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 outline-none focus:border-green-700"
+              >
+                {workers.map(worker => (
+                  <option key={worker.id} value={worker.id}>{worker.name}</option>
+                ))}
+                {workers.length === 0 && <option value="">No workers available</option>}
+              </select>
+            </label>
+
             <label className="block text-sm font-medium text-gray-700">
               Priority
-              <select className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 outline-none focus:border-green-700">
+              <select
+                value={taskForm.priority}
+                onChange={e => setTaskForm({ ...taskForm, priority: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 outline-none focus:border-green-700"
+              >
                 <option>High</option>
                 <option>Medium</option>
                 <option>Low</option>
               </select>
             </label>
-            <button disabled className="w-full rounded-lg bg-gray-200 px-4 py-3 text-sm font-semibold text-gray-500">
-              Create Task Endpoint Needed
+
+            <label className="block text-sm font-medium text-gray-700">
+              Due Date
+              <input
+                type="date"
+                value={taskForm.dueDate}
+                onChange={e => setTaskForm({ ...taskForm, dueDate: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 outline-none focus:border-green-700"
+              />
+            </label>
+
+            <label className="block text-sm font-medium text-gray-700">
+              Notes
+              <textarea
+                value={taskForm.description}
+                onChange={e => setTaskForm({ ...taskForm, description: e.target.value })}
+                rows={3}
+                className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 outline-none focus:border-green-700"
+                placeholder="Optional instructions for the worker..."
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={creating || fields.length === 0 || workers.length === 0}
+              style={{ backgroundColor: creating || fields.length === 0 || workers.length === 0 ? '#BDBDBD' : green }}
+              className="w-full rounded-lg px-4 py-3 text-sm font-semibold text-white"
+            >
+              {creating ? 'Creating Task...' : 'Create Task'}
             </button>
-          </div>
+          </form>
+
+          {createStatus && (
+            <p className={`mt-3 rounded-lg p-3 text-sm ${createStatus.includes('success') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {createStatus}
+            </p>
+          )}
         </Card>
       </div>
 
@@ -640,7 +793,7 @@ function SettingsView() {
       if (!response.ok) throw new Error(data.detail || 'Worker creation failed')
 
       setWorkers(current => [data.worker, ...current])
-      setStatus(`Worker created. Login ID: ${data.worker.login_id}`)
+      setStatus(`Worker created. Worker ID: ${data.worker.id} | Login ID: ${data.worker.login_id}`)
       setForm({ name: '', role: 'Field Worker', contact: '', assigned_sector: 'Block A', password: '' })
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Worker creation failed')
@@ -708,7 +861,7 @@ function SettingsView() {
             <div key={worker.id} className="rounded-lg border border-gray-100 p-3">
               <p className="font-semibold text-gray-900">{worker.name}</p>
               <p className="text-sm text-gray-500">{worker.role} - {worker.assigned_sector}</p>
-              <p className="text-xs text-gray-500">Login ID: {worker.login_id}</p>
+              <p className="text-xs text-gray-500">Worker ID: {worker.id} | Login ID: {worker.login_id}</p>
             </div>
           ))}
         </div>
@@ -720,49 +873,75 @@ function SettingsView() {
 export default function FarmManagerDashboard() {
   const [tab, setTab] = useState<Tab>('dashboard')
   const [fields, setFields] = useState<Field[]>([])
+  const [workers, setWorkers] = useState<Worker[]>([])
   const [selectedFieldId, setSelectedFieldId] = useState<string>(fallbackFieldId)
+  const [selectedFarmId, setSelectedFarmId] = useState<string>('')
   const [tasks, setTasks] = useState<Task[]>([])
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function loadData() {
-      setLoading(true)
-      setError(null)
-
-      try {
-        const [taskResponse, fieldResponse, activityResponse] = await Promise.all([
-          fetch(`${API}/api/tasks`),
-          fetch(`${API}/api/fields`),
-          fetch(`${API}/api/activities`),
-        ])
-
-        const taskData = await taskResponse.json()
-        const fieldData = await fieldResponse.json()
-        const activityData = await activityResponse.json()
-
-        if (!taskResponse.ok) throw new Error(taskData.detail || 'Unable to load tasks')
-        if (!fieldResponse.ok) throw new Error(fieldData.detail || 'Unable to load fields')
-        if (!activityResponse.ok) throw new Error(activityData.detail || 'Unable to load activities')
-
-        setTasks(taskData.tasks || [])
-        const nextFields = fieldData.fields || []
-        setFields(nextFields)
-        if (nextFields.length > 0) {
-          setSelectedFieldId(nextFields[0].id)
-        }
-        setActivities(activityData.activities || [])
-      } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : 'Unable to load dashboard data')
-      } finally {
-        setLoading(false)
-      }
+  // Fetch workers whenever the selected farm changes
+  const fetchWorkers = async (farmId: string) => {
+    if (!farmId) return
+    try {
+      const res = await fetch(`${API}/api/workers?farm_id=${farmId}`)
+      const data = await res.json()
+      if (res.ok) setWorkers(data.workers || [])
+    } catch (e) {
+      console.error('Failed to load workers:', e)
     }
+  }
 
+  const loadData = async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const [taskResponse, fieldResponse, activityResponse] = await Promise.all([
+        fetch(`${API}/api/tasks`),
+        fetch(`${API}/api/fields`),
+        fetch(`${API}/api/activities`),
+      ])
+
+      const taskData = await taskResponse.json()
+      const fieldData = await fieldResponse.json()
+      const activityData = await activityResponse.json()
+
+      if (!taskResponse.ok) throw new Error(taskData.detail || 'Unable to load tasks')
+      if (!fieldResponse.ok) throw new Error(fieldData.detail || 'Unable to load fields')
+      if (!activityResponse.ok) throw new Error(activityData.detail || 'Unable to load activities')
+
+      setTasks(taskData.tasks || [])
+      const nextFields = fieldData.fields || []
+      setFields(nextFields)
+
+      if (nextFields.length > 0) {
+        setSelectedFieldId(nextFields[0].id)
+        const farmId = nextFields[0].farm_id || ''
+        setSelectedFarmId(farmId)
+        await fetchWorkers(farmId)
+      }
+
+      setActivities(activityData.activities || [])
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load dashboard data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     void loadData()
   }, [])
+
+  // Re-fetch workers when farm changes (e.g. if you add a farm selector later)
+  useEffect(() => {
+    if (selectedFarmId) {
+      void fetchWorkers(selectedFarmId)
+    }
+  }, [selectedFarmId])
 
   useEffect(() => {
     async function loadRecommendations() {
@@ -797,12 +976,12 @@ export default function FarmManagerDashboard() {
   ]
 
   const content = useMemo(() => {
-    if (tab === 'operations') return <OperationsView tasks={tasks} activities={activities} />
+    if (tab === 'operations') return <OperationsView tasks={tasks} activities={activities} fields={fields} workers={workers} selectedFarmId={selectedFarmId} onTaskCreated={loadData} />
     if (tab === 'plots') return <PlotsView />
     if (tab === 'analytics') return <AnalyticsView />
     if (tab === 'settings') return <SettingsView />
     return <DashboardView tasks={tasks} recommendations={recommendations} setTab={setTab} />
-  }, [activities, recommendations, tab, tasks])
+  }, [activities, fields, recommendations, selectedFarmId, tab, tasks, workers])
 
   return (
     <div className="min-h-screen bg-[#F5F5F5] text-[#212121]">
@@ -836,7 +1015,14 @@ export default function FarmManagerDashboard() {
                 Field
                 <select
                   value={selectedFieldId}
-                  onChange={event => setSelectedFieldId(event.target.value)}
+                  onChange={event => {
+                    const newFieldId = event.target.value
+                    setSelectedFieldId(newFieldId)
+                    const field = fields.find(f => f.id === newFieldId)
+                    if (field?.farm_id) {
+                      setSelectedFarmId(field.farm_id)
+                    }
+                  }}
                   className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 outline-none focus:border-green-700 md:w-56"
                 >
                   {fields.length === 0 && <option value={fallbackFieldId}>Field {fallbackFieldId}</option>}

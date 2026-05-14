@@ -9,7 +9,7 @@ import type { FarmTask, TaskPriority, TaskStatus } from './api/tasks'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 const green = '#2d5016'
-const TEST_FIELD_ID = '22222222-2222-2222-2222-222222222222'
+const FIELD_ID = '1'
 
 type PageId = 'home' | 'tasks' | 'fields' | 'schedule' | 'alerts'
 
@@ -119,7 +119,7 @@ function RecommendationCard({ recommendation }: { recommendation: FarmRecommenda
 
 function HomePage({ accessToken, setActive }: { accessToken?: string; setActive: (page: PageId) => void }) {
   const { tasks, summary } = useTasks(accessToken)
-  const { recommendations, loading, error, reload } = useRecommendations(TEST_FIELD_ID, accessToken)
+  const { recommendations, loading, error, reload } = useRecommendations(FIELD_ID, accessToken)
   const [showPastRecommendations, setShowPastRecommendations] = useState(false)
   const latestRecommendations = showPastRecommendations ? recommendations : recommendations.slice(0, 3)
   const activeRecommendations = recommendations.filter(rec => rec.status !== 'expired')

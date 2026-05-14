@@ -8,13 +8,13 @@ router = APIRouter()
 @router.post("/recommend/{field_id}")
 async def get_recommendations(field_id: str):
     try:
-        fid = int(field_id)
         supabase = get_supabase()
 
+        # Keep as string (UUID)
         climate_result = (
             supabase.table("climate_records")
             .select("*")
-            .eq("field_id", fid)
+            .eq("field_id", field_id)          # ← No int() conversion
             .order("date", desc=True)
             .limit(1)
             .execute()
@@ -28,7 +28,7 @@ async def get_recommendations(field_id: str):
         field_result = (
             supabase.table("fields")
             .select("*")
-            .eq("id", fid)
+            .eq("id", field_id)                # ← No int() conversion
             .limit(1)
             .execute()
         )
@@ -38,13 +38,13 @@ async def get_recommendations(field_id: str):
 
         field_data = field_result.data[0]
 
-        raw_recommendations = evaluate_rules(latest_climate, fid)
+        raw_recommendations = evaluate_rules(latest_climate, field_id)
 
         recommendations_to_insert = []
         for rec in raw_recommendations:
             recommendations_to_insert.append({
-                "field_id": fid,
-                "farm_id": int(field_data.get("farm_id")),
+                "field_id": field_id,
+                "farm_id": field_data.get("farm_id"),
                 "source": "rule_engine",
                 "rule_id": rec.get("rule_id"),
                 "title": rec.get("rule_id", "Recommendation"),
@@ -63,10 +63,11 @@ async def get_recommendations(field_id: str):
         if recommendations_to_insert:
             supabase.table("recommendations").insert(recommendations_to_insert).execute()
 
+        # Fetch all recommendations
         all_recs = (
             supabase.table("recommendations")
             .select("*, fields(id, name, crop_type)")
-            .eq("field_id", fid)
+            .eq("field_id", field_id)
             .order("created_at", desc=True)
             .execute()
         )
@@ -77,10 +78,10 @@ async def get_recommendations(field_id: str):
                 rec["field_name"] = rec["fields"].get("name")
                 rec["crop_type"] = rec["fields"].get("crop_type")
 
-        print(f"✅ Generated {len(recommendations_to_insert)} recommendations for field {fid}")
+        print(f"✅ Generated {len(recommendations_to_insert)} recommendations for field {field_id}")
 
         return {
-            "field_id": fid,
+            "field_id": field_id,
             "new_recommendations": len(recommendations_to_insert),
             "recommendations": recommendations
         }
@@ -95,13 +96,12 @@ async def get_recommendations(field_id: str):
 @router.get("/recommend/{field_id}")
 async def list_recommendations(field_id: str):
     try:
-        fid = int(field_id)
         supabase = get_supabase()
 
         result = (
             supabase.table("recommendations")
             .select("*, fields(id, name, crop_type)")
-            .eq("field_id", fid)
+            .eq("field_id", field_id)           # ← No int() conversion
             .order("created_at", desc=True)
             .execute()
         )
@@ -112,7 +112,7 @@ async def list_recommendations(field_id: str):
                 rec["field_name"] = rec["fields"].get("name")
                 rec["crop_type"] = rec["fields"].get("crop_type")
 
-        return {"field_id": fid, "recommendations": recommendations}
+        return {"field_id": field_id, "recommendations": recommendations}
 
     except Exception as e:
         print(f"❌ ERROR fetching recommendations: {e}")
